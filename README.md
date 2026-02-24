@@ -4,6 +4,28 @@ A Retrieval-Augmented Generation (RAG) chat application that lets you have multi
 
 ---
 
+## Quick Start
+
+```bash
+# 1. Start Weaviate
+docker run -d -p 8080:8080 -p 50051:50051 \
+  cr.weaviate.io/semitechnologies/weaviate:1.28.0
+
+# 2. Set your API key and install dependencies
+cp config.py.example config.py   # then fill in LLM_API_KEY and LLM_API_BASE
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Start the backend (indexes PDF on first run)
+uvicorn api_service:app --reload --host 0.0.0.0 --port 8000
+
+# 4. Start the frontend
+streamlit run streamlit_app.py
+# Open http://localhost:8501
+```
+
+---
+
 ## Architecture
 
 ```
@@ -32,7 +54,7 @@ Conversation Memory  (SQLite  conversations.db)
 | Backend | FastAPI + WebSocket |
 | RAG Pipeline | LangGraph |
 | Vector Database | Weaviate (local) |
-| LLM & Embeddings | GapGPT API (OpenAI-compatible) |
+| LLM & Embeddings | GPT API (OpenAI-compatible) |
 | Conversation Memory | SQLite via LangGraph `SqliteSaver` |
 | Document Loader | PyPDF |
 
@@ -43,7 +65,7 @@ Conversation Memory  (SQLite  conversations.db)
 ```
 .
 ├── config.py                        # All configuration constants
-├── embeddings.py                    # GapGPTEmbeddings class
+├── embeddings.py                    # GPTEmbeddings class
 ├── vectorstore.py                   # PDF loading, chunking, and Weaviate indexing
 │
 ├── graph/
@@ -66,10 +88,8 @@ Conversation Memory  (SQLite  conversations.db)
 ├── streamlit_app.py                 # Entry point — Streamlit UI
 │
 ├── reset_weaviate.py                # Utility: delete Weaviate collection
-├── gap_gpt_test_models.py           # Utility: list available GapGPT models
 │
-├── requirements.txt
-└── requirements_auth.txt            # Extended deps (Firebase, Firestore, websocket-client)
+└── requirements.txt
 ```
 
 ---
@@ -77,26 +97,28 @@ Conversation Memory  (SQLite  conversations.db)
 ## Prerequisites
 
 - Python 3.10+
-- A running **Weaviate** instance on `localhost:8080` (gRPC on `50051`)
+- Docker (for running Weaviate)
 - A `computer_architecture.pdf` file placed in the project root (used as the knowledge base)
-- Access to the **GapGPT API** at `https://api.gapgpt.app/v1`
+- Access to an **OpenAI-compatible API** (OpenAI, Azure OpenAI, local model server, etc.)
 
 ### Running Weaviate locally
-
-The easiest way is with Docker:
 
 ```bash
 docker run -d \
   -p 8080:8080 \
   -p 50051:50051 \
-  cr.weaviate.io/semitechnologies/weaviate:latest
+  cr.weaviate.io/semitechnologies/weaviate:1.28.0
 ```
+
+> Pinning to a specific version is recommended over `latest` for reproducibility.
 
 ---
 
 ## Installation
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -104,11 +126,24 @@ pip install -r requirements.txt
 
 ## Configuration
 
-All settings live in `config.py`:
+All settings live in `config.py`. At minimum, set your API credentials before running:
 
 ```python
-PDF_PATH        = "computer_architecture.pdf"
-WEAVIATE_URL    = "http://localhost:8080"
+LLM_API_KEY  = "sk-..."                        # your OpenAI (or compatible) API key
+LLM_API_BASE = "https://api.openai.com/v1"     # base URL for the LLM API
+```
+
+> **Keep your API key out of version control.** You can also export it as an environment variable and read it in `config.py` with `os.environ.get("OPENAI_API_KEY", "")`.
+
+Full settings reference:
+
+```python
+PDF_PATH         = "computer_architecture.pdf"
+WEAVIATE_URL     = "http://localhost:8080"
+EMBEDDING_MODEL  = "text-embedding-3-large"
+LLM_MODEL        = "gpt-4o-mini"
+LLM_API_BASE     = ""
+LLM_API_KEY      = ""
 EMBED_BATCH_SIZE = 128
 
 API_HOST = "localhost"
@@ -189,7 +224,7 @@ The pipeline is a directed graph with four nodes executed in sequence:
 3. **Retrieve** — For each search term, a hybrid search is run against Weaviate combining:
    - Vector similarity (`text-embedding-3-large`, alpha = 0.5)
    - BM25 keyword search (alpha = 0.5)
-   
+
    Results are deduplicated by `chunk_id` and the top 10 chunks by score are kept.
 
 4. **Generate** — The LLM streams an answer using the retrieved chunks and conversation context summary as grounding.
@@ -215,7 +250,25 @@ On first run, `computer_architecture.pdf` is:
 python reset_weaviate.py
 ```
 
-**List available GapGPT models**:
-```bash
-python gap_gpt_test_models.py
-```
+---
+
+## Troubleshooting
+
+**Backend fails to start / cannot connect to Weaviate**
+- Confirm Weaviate is running: `docker ps` and `curl http://localhost:8080/v1/.well-known/ready`
+- Check that ports 8080 and 50051 are not blocked by a firewall or already in use.
+
+**`FileNotFoundError` for the PDF**
+- Place `computer_architecture.pdf` in the project root (same directory as `api_service.py`).
+- Or update `PDF_PATH` in `config.py` to point to the correct location.
+
+**`AuthenticationError` / 401 from the LLM API**
+- Verify `LLM_API_KEY` and `LLM_API_BASE` in `config.py` are correct.
+- If using a local model server, confirm it is running and the base URL matches.
+
+**Stale data / want to re-index the PDF**
+- Run `python reset_weaviate.py` to drop the collection, then restart the backend.
+
+**Streamlit cannot reach the backend**
+- Confirm the FastAPI server is running on port 8000 before starting Streamlit.
+- Check `API_HOST` and `API_PORT` in `config.py` match the backend address.
