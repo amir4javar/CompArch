@@ -8,7 +8,7 @@ from config import LLM_API_BASE, LLM_API_KEY, EMBEDDING_MODEL, EMBED_BATCH_SIZE
 openai_client = OpenAI(base_url=LLM_API_BASE, api_key=LLM_API_KEY)
 
 
-class GapGPTEmbeddings:
+class GPTEmbeddings:
     """Embedding helper that mirrors the OpenAI Python client usage."""
 
     def __init__(self, client: OpenAI, model: str, batch_size: int = 32):
@@ -31,4 +31,4 @@ class GapGPTEmbeddings:
         return response.data[0].embedding
 
 
-embeddings = GapGPTEmbeddings(openai_client, EMBEDDING_MODEL, batch_size=EMBED_BATCH_SIZE)
+embeddings = GPTEmbeddings(openai_client, EMBEDDING_MODEL, batch_size=EMBED_BATCH_SIZE)

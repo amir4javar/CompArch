@@ -1,11 +1,11 @@
 # --- Configuration ---
 PDF_PATH = "computer_architecture.pdf"
 WEAVIATE_URL = "http://localhost:8080"
-EMBEDDING_MODEL = ""
-LLM_MODEL = "" 
+EMBEDDING_MODEL = "text-embedding-3-large"
+LLM_MODEL = "gpt-4o-mini"  # "gemini-2.5-flash"
 LLM_API_BASE = ""
 LLM_API_KEY = ""
-EMBED_BATCH_SIZE = 128  
+EMBED_BATCH_SIZE = 128  # Keep embedding requests well under the provider's 300k token limit
 
 WEAVIATE_COLLECTION = "BookChunk_hist"
 WEAVIATE_LOCAL_PORT = 8080
