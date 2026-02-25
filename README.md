@@ -1,28 +1,16 @@
 # RAG Chat Assistant
 
-A Retrieval-Augmented Generation (RAG) chat application that lets you have multi-turn conversations with a PDF document. It uses hybrid vector + keyword search backed by Weaviate, a LangGraph pipeline for structured reasoning, and a streaming WebSocket interface.
+A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents. It combines hybrid vector + keyword search via Weaviate, a structured 4-node LangGraph reasoning pipeline, and a real-time streaming interface over WebSockets.
 
 ---
 
-## Quick Start
+## Features
 
-```bash
-# 1. Start Weaviate
-docker run -d -p 8080:8080 -p 50051:50051 \
-  cr.weaviate.io/semitechnologies/weaviate:1.28.0
-
-# 2. Set your API key and install dependencies
-cp config.py.example config.py   # then fill in LLM_API_KEY and LLM_API_BASE
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Start the backend (indexes PDF on first run)
-uvicorn api_service:app --reload --host 0.0.0.0 --port 8000
-
-# 4. Start the frontend
-streamlit run streamlit_app.py
-# Open http://localhost:8501
-```
+- **Multi-turn conversations** — full conversation history with context-aware reformulation
+- **Hybrid search** — combines dense vector similarity and BM25 keyword search (50/50 alpha) for best-of-both-worlds retrieval
+- **Streaming responses** — tokens stream in real time to the browser via WebSocket
+- **Persistent sessions** — conversation state is stored in SQLite; restarting the server preserves history
+- **REST fallback** — non-streaming HTTP endpoint available alongside WebSocket
 
 ---
 
@@ -36,11 +24,11 @@ User (Streamlit UI)
 FastAPI Backend  (api_service.py)
     │
     ▼
-LangGraph RAG Pipeline  (hybrid_search_graph_history.py)
-    ├── 1. Contextualize   — analyze conversation history, reformulate question
-    ├── 2. Extract Terms   — extract 1–3 key search terms via LLM
-    ├── 3. Retrieve        — hybrid search (vector + BM25) on Weaviate
-    └── 4. Generate        — stream answer from LLM using retrieved context
+LangGraph RAG Pipeline
+    ├── 1. Contextualize   — analyze history, extract current intent
+    ├── 2. Extract Terms   — distill 1–3 precise search queries via LLM
+    ├── 3. Retrieve        — hybrid search (vector + BM25) against Weaviate
+    └── 4. Generate        — stream grounded answer from LLM
     │
     ▼
 Conversation Memory  (SQLite  conversations.db)
@@ -53,8 +41,8 @@ Conversation Memory  (SQLite  conversations.db)
 | Frontend | Streamlit |
 | Backend | FastAPI + WebSocket |
 | RAG Pipeline | LangGraph |
-| Vector Database | Weaviate (local) |
-| LLM & Embeddings | GPT API (OpenAI-compatible) |
+| Vector Database | Weaviate (local Docker) |
+| LLM & Embeddings | OpenAI-compatible API (`gpt-4o-mini` / `text-embedding-3-large`) |
 | Conversation Memory | SQLite via LangGraph `SqliteSaver` |
 | Document Loader | PyPDF |
 
@@ -64,8 +52,8 @@ Conversation Memory  (SQLite  conversations.db)
 
 ```
 .
-├── config.py                        # All configuration constants
-├── embeddings.py                    # GPTEmbeddings class
+├── config.py                        # All configuration constants (reads from .env)
+├── embeddings.py                    # Embedding client wrapper
 ├── vectorstore.py                   # PDF loading, chunking, and Weaviate indexing
 │
 ├── graph/
@@ -75,139 +63,97 @@ Conversation Memory  (SQLite  conversations.db)
 │
 ├── api/
 │   ├── lifespan.py                  # FastAPI startup/shutdown + thread pool
-│   └── routes.py                    # All HTTP and WebSocket endpoints
+│   └── routes.py                    # HTTP and WebSocket endpoints
 │
 ├── ui/
 │   ├── styles.py                    # Custom CSS
 │   ├── websocket_client.py          # WebSocket communication helpers
 │   ├── sidebar.py                   # Settings sidebar
-│   └── chat.py                      # Chat history, input handling, footer
+│   └── chat.py                      # Chat history and input handling
 │
-├── hybrid_search_graph_history.py   # Entry point — pipeline (run directly or import)
+├── hybrid_search_graph_history.py   # Entry point — run pipeline from terminal
 ├── api_service.py                   # Entry point — FastAPI server
 ├── streamlit_app.py                 # Entry point — Streamlit UI
 │
-├── reset_weaviate.py                # Utility: delete Weaviate collection
-│
-└── requirements.txt
+├── reset_weaviate.py                # Utility: wipe and re-index Weaviate collection
+├── .env.example                     # Environment variable template
+├── requirements.txt                 # Core dependencies
+└── requirements_auth.txt            # Extended deps (Firebase, Firestore, websocket-client)
 ```
 
 ---
 
-## Prerequisites
+## Quick Start
+
+### 1. Prerequisites
 
 - Python 3.10+
-- Docker (for running Weaviate)
-- A `computer_architecture.pdf` file placed in the project root (used as the knowledge base)
-- Access to an **OpenAI-compatible API** (OpenAI, Azure OpenAI, local model server, etc.)
+- Docker (for Weaviate)
+- An OpenAI-compatible API key
 
-### Running Weaviate locally
+### 2. Start Weaviate
 
 ```bash
 docker run -d \
   -p 8080:8080 \
   -p 50051:50051 \
-  cr.weaviate.io/semitechnologies/weaviate:1.28.0
+  cr.weaviate.io/semitechnologies/weaviate:latest
 ```
 
-> Pinning to a specific version is recommended over `latest` for reproducibility.
-
----
-
-## Installation
+### 3. Install dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
+### 4. Configure environment
 
-## Configuration
+Copy `.env.example` to `.env` and add your API key:
 
-All settings live in `config.py`. At minimum, set your API credentials before running:
-
-```python
-LLM_API_KEY  = "sk-..."                        # your OpenAI (or compatible) API key
-LLM_API_BASE = "https://api.openai.com/v1"     # base URL for the LLM API
+```bash
+cp .env.example .env
+# then edit .env:
+# LLM_API_KEY=sk-...
 ```
 
-> **Keep your API key out of version control.** You can also export it as an environment variable and read it in `config.py` with `os.environ.get("OPENAI_API_KEY", "")`.
+All other settings (model names, ports, PDF path) are in `config.py`.
 
-Full settings reference:
+### 5. Add your PDF
 
-```python
-PDF_PATH         = "computer_architecture.pdf"
-WEAVIATE_URL     = "http://localhost:8080"
-EMBEDDING_MODEL  = "text-embedding-3-large"
-LLM_MODEL        = "gpt-4o-mini"
-LLM_API_BASE     = ""
-LLM_API_KEY      = ""
-EMBED_BATCH_SIZE = 128
+Place your PDF in the project root. By default the app looks for `computer_architecture.pdf`. To use a different file, update `PDF_PATH` in `config.py`.
 
-API_HOST = "localhost"
-API_PORT = 8000
-```
-
----
-
-## Running the Application
-
-Both services must be running at the same time.
-
-### 1. Start the FastAPI backend
+### 6. Start the backend
 
 ```bash
 uvicorn api_service:app --reload --host 0.0.0.0 --port 8000
 ```
 
-On first startup the backend will automatically load the PDF, chunk it, embed it, and index it in Weaviate. Subsequent starts skip this step if the collection already exists.
+On first startup the backend automatically loads the PDF, chunks it, embeds it, and indexes it in Weaviate. Subsequent starts skip this step if the collection already exists.
 
-### 2. Start the Streamlit frontend
+### 7. Start the frontend
 
 ```bash
 streamlit run streamlit_app.py
 ```
 
-Then open [http://localhost:8501](http://localhost:8501) in your browser.
-
-### 3. (Optional) Run the pipeline from the terminal
-
-```bash
-python hybrid_search_graph_history.py
-```
+Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ---
 
-## API Endpoints
+## Configuration
 
-| Method | Path | Description |
+All settings are in `config.py` and can be overridden via environment variables or by editing the file directly:
+
+| Variable | Default | Description |
 |---|---|---|
-| `GET` | `/` | API info |
-| `GET` | `/health` | Weaviate connectivity check |
-| `GET` | `/session` | Generate a new session ID |
-| `WS` | `/ws/chat/{session_id}` | Streaming chat (WebSocket) |
-| `POST` | `/chat/{session_id}` | Non-streaming chat (REST) |
-| `GET` | `/debug/history/{session_id}` | Inspect conversation history |
-| `GET` | `/docs` | Interactive API docs (Swagger) |
-
-### WebSocket message protocol
-
-**Client → Server**
-```json
-{ "question": "What is pipelining?" }
-```
-
-**Server → Client** (sequence)
-```json
-{ "type": "connected",    "session_id": "...", "message": "..." }
-{ "type": "processing" }
-{ "type": "stream_start", "search_queries": ["pipelining", "..."] }
-{ "type": "token",        "content": "P" }
-{ "type": "token",        "content": "i" }
-{ "type": "complete",     "answer": "...", "sources": [...], "search_queries": [...] }
-```
+| `PDF_PATH` | `computer_architecture.pdf` | Path to the source PDF |
+| `LLM_MODEL` | `gpt-4o-mini` | Chat model |
+| `EMBEDDING_MODEL` | `text-embedding-3-large` | Embedding model |
+| `LLM_API_BASE` | `https://api.openai.com/v1` | API base URL (swap for any OpenAI-compatible endpoint) |
+| `LLM_API_KEY` | *(from `.env`)* | API key |
+| `WEAVIATE_URL` | `http://localhost:8080` | Weaviate HTTP endpoint |
+| `EMBED_BATCH_SIZE` | `128` | Chunks per embedding request |
+| `API_HOST` / `API_PORT` | `localhost` / `8000` | FastAPI server binding |
 
 ---
 
@@ -217,58 +163,100 @@ python hybrid_search_graph_history.py
 
 The pipeline is a directed graph with four nodes executed in sequence:
 
-1. **Contextualize** — Given the conversation history, the LLM extracts the user's actual intent and produces a context summary. For standalone questions it passes the question through unchanged.
+1. **Contextualize** — The LLM reads the last 8 messages and the current question, then produces a `CONTEXT_SUMMARY` describing what prior context is needed. For standalone questions it passes through unchanged.
 
 2. **Extract Terms** — The LLM distills the reformulated question into 1–3 precise search terms optimized for retrieval.
 
-3. **Retrieve** — For each search term, a hybrid search is run against Weaviate combining:
-   - Vector similarity (`text-embedding-3-large`, alpha = 0.5)
-   - BM25 keyword search (alpha = 0.5)
+3. **Retrieve** — For each search term, a hybrid search runs against Weaviate combining:
+   - Dense vector similarity (`text-embedding-3-large`)
+   - BM25 keyword search
+   - Equal 50/50 alpha weighting
 
    Results are deduplicated by `chunk_id` and the top 10 chunks by score are kept.
 
-4. **Generate** — The LLM streams an answer using the retrieved chunks and conversation context summary as grounding.
+4. **Generate** — The LLM streams an answer using the retrieved chunks and the context summary as grounding.
 
 ### Conversation Memory
 
-Each session is identified by a `session_id` (e.g. `session_a3f2c1b0`). Conversation state is persisted in `conversations.db` (SQLite) via LangGraph's `SqliteSaver` checkpointer. Reusing the same session ID across restarts preserves full conversation history.
+Each session has a `session_id` (e.g. `session_a3f2c1b0`). State is persisted in `conversations.db` (SQLite) via LangGraph's `SqliteSaver`. Reusing the same session ID after a server restart restores the full conversation history.
 
 ### Document Indexing
 
-On first run, `computer_architecture.pdf` is:
+On first run, the PDF is:
 1. Loaded page-by-page with `PyPDFLoader`
 2. Split into ~800-token chunks with 100-token overlap
 3. Each chunk is assigned a unique `chunk_id`
-4. Embedded in batches of 128 and stored in the Weaviate collection `BookChunk_hist`
+4. Embedded in batches and stored in the Weaviate collection `BookChunk_hist`
+
+---
+
+## API Reference
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | API info and available endpoints |
+| `GET` | `/health` | Weaviate connectivity check |
+| `GET` | `/session` | Generate a new session ID |
+| `WS` | `/ws/chat/{session_id}` | Streaming chat (WebSocket) |
+| `POST` | `/chat/{session_id}` | Non-streaming chat (REST) |
+| `GET` | `/debug/history/{session_id}` | Inspect conversation history for a session |
+| `GET` | `/docs` | Interactive Swagger UI |
+
+### WebSocket protocol
+
+**Client → Server**
+```json
+{ "question": "What is pipelining?" }
+```
+
+**Server → Client** (in order)
+```json
+{ "type": "connected",    "session_id": "...", "message": "Connected to RAG chat service" }
+{ "type": "processing" }
+{ "type": "stream_start", "search_queries": ["pipelining", "instruction hazards"] }
+{ "type": "token",        "content": "P" }
+{ "type": "token",        "content": "ipelining" }
+{ "type": "complete",     "answer": "...", "sources": [...], "search_queries": [...] }
+```
+
+### REST endpoint
+
+```bash
+curl -X POST http://localhost:8000/chat/my-session \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is cache coherence?"}'
+```
 
 ---
 
 ## Utilities
 
-**Delete the Weaviate collection** (to force re-indexing):
+**Force re-indexing** (deletes the Weaviate collection so the next startup rebuilds it):
 ```bash
 python reset_weaviate.py
+```
+
+**Run the pipeline from the terminal** (no UI):
+```bash
+python hybrid_search_graph_history.py
 ```
 
 ---
 
 ## Troubleshooting
 
-**Backend fails to start / cannot connect to Weaviate**
-- Confirm Weaviate is running: `docker ps` and `curl http://localhost:8080/v1/.well-known/ready`
-- Check that ports 8080 and 50051 are not blocked by a firewall or already in use.
+**Weaviate connection refused**
+Confirm Docker is running and the container is up:
+```bash
+docker ps
+curl http://localhost:8080/v1/.well-known/ready
+```
 
-**`FileNotFoundError` for the PDF**
-- Place `computer_architecture.pdf` in the project root (same directory as `api_service.py`).
-- Or update `PDF_PATH` in `config.py` to point to the correct location.
+**`LLM_API_KEY` not found**
+Make sure `.env` exists in the project root with `LLM_API_KEY=...` set, or export the variable in your shell.
 
-**`AuthenticationError` / 401 from the LLM API**
-- Verify `LLM_API_KEY` and `LLM_API_BASE` in `config.py` are correct.
-- If using a local model server, confirm it is running and the base URL matches.
+**PDF not found on startup**
+Check that your PDF file name matches `PDF_PATH` in `config.py` and that it is placed in the project root.
 
-**Stale data / want to re-index the PDF**
-- Run `python reset_weaviate.py` to drop the collection, then restart the backend.
-
-**Streamlit cannot reach the backend**
-- Confirm the FastAPI server is running on port 8000 before starting Streamlit.
-- Check `API_HOST` and `API_PORT` in `config.py` match the backend address.
+**Want to use a different LLM provider**
+Set `LLM_API_BASE` to any OpenAI-compatible endpoint (e.g. Azure OpenAI, local Ollama with `openai` compatibility) and update `LLM_MODEL` accordingly.
