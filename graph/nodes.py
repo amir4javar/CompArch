@@ -1,4 +1,6 @@
-from typing import List, Generator
+import logging
+import threading
+from typing import Callable, List, Generator, Optional
 
 import weaviate
 import weaviate.classes.query as wq
@@ -9,6 +11,50 @@ from config import LLM_MODEL, LLM_API_BASE, LLM_API_KEY, WEAVIATE_COLLECTION
 from embeddings import openai_client, embeddings
 from graph.state import GraphState
 
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Module-level LLM singleton
+# ---------------------------------------------------------------------------
+_llm = ChatOpenAI(
+    model=LLM_MODEL,
+    base_url=LLM_API_BASE,
+    api_key=LLM_API_KEY,
+)
+
+# ---------------------------------------------------------------------------
+# Weaviate lazy singleton with reconnection
+# ---------------------------------------------------------------------------
+_weaviate_client: Optional[weaviate.WeaviateClient] = None
+_weaviate_lock = threading.Lock()
+
+
+def _get_weaviate_client() -> weaviate.WeaviateClient:
+    global _weaviate_client
+    with _weaviate_lock:
+        if _weaviate_client is None or not _weaviate_client.is_connected():
+            _weaviate_client = weaviate.connect_to_local()
+    return _weaviate_client
+
+
+# ---------------------------------------------------------------------------
+# Streaming callback registry
+# Maps session_id → callable(token: str | None)
+# None is the sentinel that signals end-of-stream.
+# ---------------------------------------------------------------------------
+_callbacks: dict[str, Callable[[Optional[str]], None]] = {}
+_callbacks_lock = threading.Lock()
+
+
+def register_stream_callback(session_id: str, callback: Callable[[Optional[str]], None]) -> None:
+    with _callbacks_lock:
+        _callbacks[session_id] = callback
+
+
+def unregister_stream_callback(session_id: str) -> None:
+    with _callbacks_lock:
+        _callbacks.pop(session_id, None)
+
 
 # ---------------------------------------------------------------------------
 # Node 1: Contextualize
@@ -17,35 +63,29 @@ from graph.state import GraphState
 def contextualize_node(state: GraphState):
     """Analyzes conversation history and creates context summary."""
     messages = state.get("messages", [])
-    
+
     # Get the current question from the last message
     if messages:
         question = messages[-1].content
     else:
         question = state.get("question", "")
-    
+
     # If no history or only one message, return as-is
     if len(messages) <= 1:
-        print("📝 No conversation history - using question as-is")
+        logger.debug("No conversation history — using question as-is")
         return {
             "question": question,
             "reformulated_question": question,
-            "context_summary": "No previous context."
+            "context_summary": "No previous context.",
         }
-    
+
     # Get last 8 messages (excluding current) for context
     history_messages = messages[-9:-1] if len(messages) > 8 else messages
     history = "\n".join([
-        f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.content}" 
+        f"{'User' if isinstance(m, HumanMessage) else 'Assistant'}: {m.content}"
         for m in history_messages
     ])
-    
-    llm = ChatOpenAI(
-        model=LLM_MODEL,
-        base_url=LLM_API_BASE,
-        api_key=LLM_API_KEY,
-    )
-    
+
     prompt = f"""You are a conversation context analyzer. Your job is to analyze the conversation history and the current user question.
 
                 You MUST output EXACTLY two lines in the following format. No extra text, no explanations, no markdown, no bullet points, no numbering. Just these two lines:
@@ -102,14 +142,14 @@ def contextualize_node(state: GraphState):
                 {history}
 
                 Current User Question: {question}"""
-    
-    response = llm.invoke(prompt)
+
+    response = _llm.invoke(prompt)
     output = response.content.strip()
-    
+
     # Parse the structured output
     user_question = question  # Default to original
     context_summary = "No context needed."
-    
+
     if "USER_CURRENT_QUESTION:" in output and "CONTEXT_SUMMARY:" in output:
         try:
             parts = output.split("USER_CURRENT_QUESTION:", 1)[1]
@@ -121,17 +161,21 @@ def contextualize_node(state: GraphState):
             context_summary = output
     else:
         context_summary = output
-    
+
     # Combine for retrieval
-    reformulated = f"{user_question}\nContext: {context_summary}" if context_summary != "No context needed." else user_question
-    
-    print(f"📝 Original Question: {question}")
-    print(f"📋 Context Summary: {context_summary}")
-    
+    reformulated = (
+        f"{user_question}\nContext: {context_summary}"
+        if context_summary != "No context needed."
+        else user_question
+    )
+
+    logger.info("Original question: %s", question)
+    logger.debug("Context summary: %s", context_summary)
+
     return {
         "question": user_question,
         "reformulated_question": reformulated,
-        "context_summary": context_summary
+        "context_summary": context_summary,
     }
 
 
@@ -142,13 +186,7 @@ def contextualize_node(state: GraphState):
 def extract_key_terms_node(state: GraphState):
     """Extracts 1-3 key search terms/queries from the reformulated question."""
     reformulated_question = state.get("reformulated_question", state.get("question", ""))
-    
-    llm = ChatOpenAI(
-        model=LLM_MODEL,
-        base_url=LLM_API_BASE,
-        api_key=LLM_API_KEY,
-    )
-    
+
     prompt = f"""You are a search query optimizer. Extract the most important search terms or short phrases from the user's question for retrieval from a knowledge base.
 
 Rules:
@@ -162,26 +200,26 @@ User's Question:
 {reformulated_question}
 
 Key Search Terms (1-3 terms, one per line):"""
-    
-    response = llm.invoke(prompt)
+
+    response = _llm.invoke(prompt)
     output = response.content.strip()
-    
+
     # Parse the output into a list of search queries
     search_queries = [
-        term.strip().strip('-').strip('•').strip('*').strip() 
-        for term in output.split('\n') 
+        term.strip().strip('-').strip('•').strip('*').strip()
+        for term in output.split('\n')
         if term.strip() and len(term.strip()) > 1
     ]
-    
+
     # Limit to max 3 queries
     search_queries = search_queries[:3]
-    
+
     # Fallback: if no terms extracted, use the original question
     if not search_queries:
         search_queries = [state.get("question", reformulated_question)]
-    
-    print(f"🔑 Extracted search terms: {search_queries}")
-    
+
+    logger.info("Extracted search terms: %s", search_queries)
+
     return {"search_queries": search_queries}
 
 
@@ -192,65 +230,53 @@ Key Search Terms (1-3 terms, one per line):"""
 def retrieve_node(state: GraphState):
     """Performs hybrid search for each extracted term and deduplicates results."""
     search_queries = state.get("search_queries", [state.get("question", "")])
-    
-    print(f"🔍 Searching with queries: {search_queries}")
 
-    client = weaviate.connect_to_local()
-    collection = client.collections.get(WEAVIATE_COLLECTION)
+    logger.info("Searching with queries: %s", search_queries)
+
+    collection = _get_weaviate_client().collections.get(WEAVIATE_COLLECTION)
 
     # Collect all results with deduplication by chunk_id
-    seen_chunk_ids = set()
+    seen_chunk_ids: set = set()
     context_data = []
-    
+
     for query in search_queries:
-        # Generate query embedding
         query_vector = embeddings.embed_query(query)
 
-        # Perform HYBRID Search
         response = collection.query.hybrid(
             query=query,
             vector=query_vector,
             alpha=0.5,
-            limit=5,  # Reduced per-query limit since we have multiple queries
-            return_metadata=wq.MetadataQuery(score=True)
+            limit=5,
+            return_metadata=wq.MetadataQuery(score=True),
         )
 
-        # Extract and deduplicate results
         for obj in response.objects:
             properties = obj.properties
             chunk_id = properties.get("chunk_id", "")
-            
-            # Skip if we've already seen this chunk
+
             if chunk_id in seen_chunk_ids:
                 continue
-            
+
             seen_chunk_ids.add(chunk_id)
-            
-            text = properties.get("text", "")
-            page = properties.get("page", "Unknown")
-            score = obj.metadata.score if obj.metadata.score else 0.0
-            
             context_data.append({
                 "chunk_id": chunk_id,
-                "text": text,
-                "page": page,
-                "score": score,
-                "matched_query": query
+                "text": properties.get("text", ""),
+                "page": properties.get("page", "Unknown"),
+                "score": obj.metadata.score if obj.metadata.score else 0.0,
+                "matched_query": query,
             })
 
     # Sort by score and take top results
     context_data.sort(key=lambda x: x["score"], reverse=True)
-    context_data = context_data[:10]  # Keep top 10
-    
-    # Format for output
+    context_data = context_data[:10]
+
     formatted_context = [
         f"[Page {item['page']}] (score: {item['score']:.4f}): {item['text']}"
         for item in context_data
     ]
 
-    print(f"📄 Found {len(formatted_context)} unique chunks via hybrid search")
+    logger.info("Found %d unique chunks via hybrid search", len(formatted_context))
 
-    client.close()
     return {"context": formatted_context}
 
 
@@ -262,25 +288,34 @@ def generate_node(state: GraphState):
     question = state.get("question", "")
     context = state.get("context", [])
     context_summary = state.get("context_summary", "")
+    session_id = state.get("session_id", "")
 
-    # Collect streamed tokens into full answer
+    with _callbacks_lock:
+        callback = _callbacks.get(session_id)
+
     full_answer = ""
-    for token in generate_stream(question, context, context_summary):
-        print(token, end="", flush=True)
-        full_answer += token
-    
-    print()  # newline after streaming
+    try:
+        for token in generate_stream(question, context, context_summary):
+            full_answer += token
+            if callback:
+                callback(token)
+    finally:
+        # Always send the sentinel so the WebSocket consumer can exit cleanly,
+        # even if generate_stream raises mid-way.
+        if callback:
+            callback(None)
 
+    logger.info("Generated answer (%d chars)", len(full_answer))
     return {
         "answer": full_answer,
-        "messages": [AIMessage(content=full_answer)]
+        "messages": [AIMessage(content=full_answer)],
     }
 
 
 def generate_stream(question: str, context: List[str], context_summary: str = "") -> Generator[str, None, None]:
     """Stream the LLM response token by token."""
-    print("💡 Generating answer (streaming)...")
-    
+    logger.debug("Generating answer (streaming)...")
+
     context_str = "\n\n".join(context)
     prompt = f"""
     You are a helpful assistant. Answer the user's question based strictly on the provided context.
@@ -295,11 +330,10 @@ def generate_stream(question: str, context: List[str], context_summary: str = ""
     Answer:
     """
 
-    # Use OpenAI client directly for streaming
     stream = openai_client.chat.completions.create(
         model=LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
-        stream=True
+        stream=True,
     )
 
     for chunk in stream:

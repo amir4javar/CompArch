@@ -5,9 +5,12 @@ This module re-exports the public API so that existing imports
 (e.g. from api_service.py) continue to work unchanged.
 """
 
+import logging
 import uuid
 
 import weaviate
+
+logger = logging.getLogger(__name__)
 from langchain_core.messages import HumanMessage
 
 from config import WEAVIATE_COLLECTION
@@ -31,7 +34,7 @@ if __name__ == "__main__":
         else:
             temp_client.close()
     except Exception as e:
-        print(f"⚠️ Index check failed or index missing. Creating new index... ({e})")
+        logger.warning("Index check failed (%s) — creating new index...", e)
         get_vectorstore()
 
     # Session ID for conversation memory

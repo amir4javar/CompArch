@@ -1,6 +1,9 @@
+import logging
 import uuid
 
 import weaviate
+
+logger = logging.getLogger(__name__)
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_weaviate.vectorstores import WeaviateVectorStore
@@ -12,7 +15,7 @@ from embeddings import embeddings
 def get_vectorstore():
     client = weaviate.connect_to_local(port=WEAVIATE_LOCAL_PORT, grpc_port=WEAVIATE_GRPC_PORT)
 
-    print("📖 Loading PDF...")
+    logger.info("Loading PDF: %s", PDF_PATH)
     loader = PyPDFLoader(PDF_PATH)
 
     text_splitter = RecursiveCharacterTextSplitter(
@@ -21,7 +24,7 @@ def get_vectorstore():
         separators=["\n\n", "\n", "."]
     )
     docs = loader.load_and_split(text_splitter)
-    print(f"✂️  Split into {len(docs)} chunks.")
+    logger.info("Split into %d chunks.", len(docs))
 
     # ADD chunk_id to each document
     for idx, doc in enumerate(docs):
@@ -33,7 +36,7 @@ def get_vectorstore():
                 clean_metadata[key] = value
         doc.metadata = clean_metadata
 
-    print("🧠 Embedding and indexing... (this may take a moment)")
+    logger.info("Embedding and indexing chunks (this may take a moment)...")
     vectorstore = WeaviateVectorStore.from_documents(
         docs,
         embeddings,
