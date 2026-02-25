@@ -1,81 +1,20 @@
-# =========================================================================
-# Python - General
-# =========================================================================
-# Byte-compiled / optimized / C-extensions
-__pycache__/
-*.py[cod]
-*$py.class
+# Secrets
+.env
 
-# C extensions
-*.so
+# Database
+*.db
+*.db-shm
+*.db-wal
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# =========================================================================
-# Virtual Environments
-# =========================================================================
-# It's a best practice to never commit your virtual environment folder.
-# The requirements.txt file is used to recreate it.
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# =========================================================================
-# Project-Specific Files (Based on Your Tree)
-# =========================================================================
-# SQLite database files
-# These are application data and should not be in version control.
-# Your application will generate them when it runs.
-conversations.db
-conversations.db-shm
-conversations.db-wal
-*.sqlite3
-
-# Large document files
-# Storing large binaries like PDFs in Git is inefficient and bloats the repo history.
-# If you must track them, use Git LFS (Large File Storage). Otherwise, ignore them.
+# Large binary / data files
 *.pdf
 
-# =========================================================================
-# Security & Configuration
-# =========================================================================
-# Environment variables - NEVER commit these!
-# They contain secrets like API keys and database passwords.
-.env
-.env.*
-!*.env.example
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
 
-# =========================================================================
-# Editor & IDE junk
-# =========================================================================
-.idea/
+# Editor
 .vscode/
-*.swp
-*.swo
-
-# =========================================================================
-# OS-specific files
-# =========================================================================
-.DS_Store
-Thumbs.db
-

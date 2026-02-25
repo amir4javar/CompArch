@@ -5,7 +5,14 @@ Simplified version that properly handles conversation history.
 Run with: uvicorn api_service:app --reload --host 0.0.0.0 --port 8000
 """
 
+import logging
+
 from fastapi import FastAPI
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 from api.lifespan import lifespan
 from api.routes import router
 

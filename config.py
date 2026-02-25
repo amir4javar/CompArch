@@ -1,10 +1,15 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # --- Configuration ---
 PDF_PATH = "computer_architecture.pdf"
 WEAVIATE_URL = "http://localhost:8080"
 EMBEDDING_MODEL = "text-embedding-3-large"
 LLM_MODEL = "gpt-4o-mini"  # "gemini-2.5-flash"
-LLM_API_BASE = ""
-LLM_API_KEY = ""
+LLM_API_BASE = "https://api.openai.com/v1"
+LLM_API_KEY = os.getenv("LLM_API_KEY")
 EMBED_BATCH_SIZE = 128  # Keep embedding requests well under the provider's 300k token limit
 
 WEAVIATE_COLLECTION = "BookChunk_hist"
