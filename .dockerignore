@@ -1,0 +1,23 @@
+.git
+.env
+.vscode
+
+# Python cache
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+
+# Test files (not needed at runtime)
+tests/
+requirements-test.txt
+pytest.ini
+
+# Runtime databases (should not be baked into the image)
+*.db
+*.db-shm
+*.db-wal
+
+# Weaviate data directory (runtime-generated)
+weaviate_data/
