@@ -1,0 +1,11 @@
+.git
+.env
+.vscode
+.pytest_cache
+__pycache__
+tests/
+*.db
+*.db-shm
+*.db-wal
+*.pyc
+logic_design.pdf
