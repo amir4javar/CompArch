@@ -1,5 +1,5 @@
 # ── Stage 1: pull Weaviate binary from the official image ─────────────────────
-FROM semitechnologies/weaviate:1.25.1 AS weaviate-source
+FROM semitechnologies/weaviate:1.28.2 AS weaviate-source
 
 # ── Stage 2: application ──────────────────────────────────────────────────────
 FROM python:3.11-slim
