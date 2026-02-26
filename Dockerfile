@@ -10,7 +10,6 @@ RUN chmod +x /usr/local/bin/weaviate
 
 # musl: Weaviate binary is Alpine-built (musl libc); curl: health-check in start.sh
 RUN apt-get update && apt-get install -y --no-install-recommends curl musl && \
-    ln -s /usr/lib/x86_64-linux-musl/libc.so /lib/ld-musl-x86_64.so.1 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
