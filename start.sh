@@ -33,7 +33,20 @@ done
 # ── Start FastAPI on localhost:8000 (internal only, not exposed) ───────────────
 # On first boot this will also embed + index the PDF into Weaviate.
 echo "[start.sh] Starting FastAPI..."
-uvicorn api_service:app --host 127.0.0.1 --port 8000 >> /tmp/fastapi.log 2>&1 &
+uvicorn api_service:app --host 127.0.0.1 --port 8000 &
+
+# Wait for FastAPI to be ready (first boot indexes the PDF — can be slow)
+echo "[start.sh] Waiting for FastAPI..."
+for i in $(seq 1 60); do
+    if curl -sf http://127.0.0.1:8000/health > /dev/null 2>&1; then
+        echo "[start.sh] FastAPI is ready!"
+        break
+    fi
+    if [ "$i" -eq 60 ]; then
+        echo "[start.sh] WARNING: FastAPI not ready after 120s, starting Streamlit anyway"
+    fi
+    sleep 2
+done
 
 # ── Start Streamlit on 0.0.0.0:7860 (the only exposed port) ──────────────────
 echo "[start.sh] Starting Streamlit on port 7860..."
