@@ -1,33 +1,32 @@
-# --- Stage 1: grab Weaviate binary ---
-FROM semitechnologies/weaviate:1.25.1 AS weaviate-src
+# ── Stage 1: pull Weaviate binary from the official image ─────────────────────
+FROM semitechnologies/weaviate:1.25.1 AS weaviate-source
 
-# --- Stage 2: runtime ---
+# ── Stage 2: application ──────────────────────────────────────────────────────
 FROM python:3.11-slim
 
-# HF Spaces expects port 7860
-EXPOSE 7860
+# Copy the Weaviate binary from the official image
+COPY --from=weaviate-source /bin/weaviate /usr/local/bin/weaviate
+RUN chmod +x /usr/local/bin/weaviate
 
-# Weaviate binary + its libs
-COPY --from=weaviate-src /bin/weaviate /usr/local/bin/weaviate
-
-# System deps
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
+# curl is needed by start.sh to health-check Weaviate before starting the API
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Python deps
+# Install Python dependencies first (layer cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
+# Copy the rest of the project (PDFs included — needed for indexing)
 COPY . .
 
-# Make startup script executable
+# Directory where Weaviate stores its data (ephemeral in HF Spaces free tier)
+RUN mkdir -p /app/weaviate_data
+
 RUN chmod +x start.sh
 
-# Weaviate data dir
-RUN mkdir -p /tmp/weaviate
+# HF Spaces requires port 7860
+EXPOSE 7860
 
 CMD ["./start.sh"]
