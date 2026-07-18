@@ -7,7 +7,7 @@ load_dotenv()
 PDF_PATH = "computer_architecture.pdf"
 WEAVIATE_URL = "http://localhost:8080"
 EMBEDDING_MODEL = "text-embedding-3-large"
-LLM_MODEL = "gpt-4o-mini"  # "gemini-2.5-flash"
+LLM_MODEL = "deepseek-v4-pro"  # "gemini-2.5-flash"
 LLM_API_BASE = "https://api.gapgpt.app/v1"
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 EMBED_BATCH_SIZE = 128  # Keep embedding requests well under the provider's 300k token limit
