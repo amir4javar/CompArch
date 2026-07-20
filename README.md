@@ -4,8 +4,6 @@ A multi-turn conversational RAG (Retrieval-Augmented Generation) application for
 
 [![Live Demo](https://img.shields.io/badge/🤗%20Live%20Demo-Hugging%20Face%20Spaces-blue)](https://huggingface.co/spaces/amir4javar/comp_arch)
 
-A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents...
-
 ---
 
 ## Features
