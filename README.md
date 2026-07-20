@@ -2,6 +2,10 @@
 
 A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents. It combines hybrid vector + keyword search via Weaviate, a structured 4-node LangGraph reasoning pipeline, and a real-time streaming interface over WebSockets.
 
+[![Live Demo](https://img.shields.io/badge/🤗%20Live%20Demo-Hugging%20Face%20Spaces-blue)](https://huggingface.co/spaces/amir4javar/comp_arch)
+
+A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents...
+
 ---
 
 ## Features
@@ -42,7 +46,7 @@ Conversation Memory  (SQLite  conversations.db)
 | Backend | FastAPI + WebSocket |
 | RAG Pipeline | LangGraph |
 | Vector Database | Weaviate (local Docker) |
-| LLM & Embeddings | OpenAI-compatible API (`gpt-4o-mini` / `text-embedding-3-large`) |
+| LLM & Embeddings | OpenAI-compatible API (`deepseek-v4-pro` / `text-embedding-3-large`) |
 | Conversation Memory | SQLite via LangGraph `SqliteSaver` |
 | Document Loader | PyPDF |
 
@@ -140,6 +144,14 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ---
 
+## Acknowledgments
+
+Claude (Anthropic) was used as an assistant for designing the Streamlit UI components in this project.
+
+---
+
+---
+
 ## Configuration
 
 All settings are in `config.py` and can be overridden via environment variables or by editing the file directly:
@@ -147,7 +159,7 @@ All settings are in `config.py` and can be overridden via environment variables 
 | Variable | Default | Description |
 |---|---|---|
 | `PDF_PATH` | `computer_architecture.pdf` | Path to the source PDF |
-| `LLM_MODEL` | `gpt-4o-mini` | Chat model |
+| `LLM_MODEL` | `deepseek-v4-pro` | Chat model |
 | `EMBEDDING_MODEL` | `text-embedding-3-large` | Embedding model |
 | `LLM_API_BASE` | `https://api.openai.com/v1` | API base URL (swap for any OpenAI-compatible endpoint) |
 | `LLM_API_KEY` | *(from `.env`)* | API key |
