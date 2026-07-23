@@ -1,5 +1,5 @@
 # --- Stage 1: source of the standalone Weaviate server binary ---
-FROM semitechnologies/weaviate:1.25.5 AS weaviate-bin
+FROM semitechnologies/weaviate:1.28.2 AS weaviate-bin
 
 # --- Stage 2: application image (Weaviate + FastAPI + Streamlit, one container) ---
 FROM python:3.11-slim
