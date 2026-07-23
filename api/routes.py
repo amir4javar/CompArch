@@ -6,13 +6,12 @@ from typing import Any, Callable, Dict
 
 logger = logging.getLogger(__name__)
 
-import weaviate
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from langchain_core.messages import HumanMessage
 
 from graph.builder import rag_app
 from graph.nodes import register_stream_callback, unregister_stream_callback
-from api.lifespan import executor
+from api.lifespan import executor, connect_weaviate
 
 router = APIRouter()
 
@@ -51,7 +50,7 @@ def _run_pipeline(inputs: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, A
 @router.get("/health")
 async def health_check():
     try:
-        client = weaviate.connect_to_local()
+        client = connect_weaviate()
         weaviate_ok = client.is_ready()
         client.close()
     except Exception:

@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import weaviate
 from fastapi import FastAPI
 
-from config import WEAVIATE_COLLECTION
+from config import WEAVIATE_COLLECTION, WEAVIATE_HOST, WEAVIATE_LOCAL_PORT, WEAVIATE_GRPC_PORT
 from vectorstore import get_vectorstore
 
 logger = logging.getLogger(__name__)
@@ -17,13 +17,20 @@ WEAVIATE_CHECK_RETRIES = 5
 WEAVIATE_CHECK_RETRY_DELAY_SECONDS = 2
 
 
+def connect_weaviate() -> weaviate.WeaviateClient:
+    """Connect to Weaviate using the configured host/ports (env-driven, see config.py)."""
+    return weaviate.connect_to_local(
+        host=WEAVIATE_HOST, port=WEAVIATE_LOCAL_PORT, grpc_port=WEAVIATE_GRPC_PORT
+    )
+
+
 def _collection_exists(collection_name: str) -> bool:
     """Connect to Weaviate and check collection existence, retrying on transient
     connection errors (e.g. Weaviate container still warming up at startup)."""
     last_error = None
     for attempt in range(1, WEAVIATE_CHECK_RETRIES + 1):
         try:
-            client = weaviate.connect_to_local()
+            client = connect_weaviate()
             try:
                 return client.collections.exists(collection_name)
             finally:

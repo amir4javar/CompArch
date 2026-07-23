@@ -1,32 +1,27 @@
-# ── Stage 1: pull Weaviate binary from the official image ─────────────────────
-FROM semitechnologies/weaviate:1.28.2 AS weaviate-source
+# --- Stage 1: source of the standalone Weaviate server binary ---
+FROM cr.weaviate.io/semitechnologies/weaviate:1.25.5 AS weaviate-bin
 
-# ── Stage 2: application ──────────────────────────────────────────────────────
+# --- Stage 2: application image (Weaviate + FastAPI + Streamlit, one container) ---
 FROM python:3.11-slim
-
-# Copy the Weaviate binary from the official image
-COPY --from=weaviate-source /bin/weaviate /usr/local/bin/weaviate
-RUN chmod +x /usr/local/bin/weaviate
-
-# musl: Weaviate binary is Alpine-built (musl libc); curl: health-check in start.sh
-RUN apt-get update && apt-get install -y --no-install-recommends curl musl && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies first (layer cache)
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=weaviate-bin /bin/weaviate /usr/local/bin/weaviate
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the project (PDFs included — needed for indexing)
 COPY . .
 
-# Directory where Weaviate stores its data (ephemeral in HF Spaces free tier)
-RUN mkdir -p /app/weaviate_data
+RUN mkdir -p /data/weaviate && chmod -R 777 /data /app
+ENV PERSISTENCE_DATA_PATH=/data/weaviate
 
-RUN chmod +x start.sh
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# HF Spaces requires port 7860
 EXPOSE 7860
 
-CMD ["./start.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
