@@ -23,3 +23,5 @@ graphify-out/
 .claude/
 CLAUDE.md
 computer_architecture.pdf
+.gitignore
+uv.lock
