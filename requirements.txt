@@ -8,6 +8,7 @@ langchain-community>=0.0.29
 langchain-text-splitters>=0.0.1
 langchain-openai>=0.0.8
 langgraph>=0.0.19
+langgraph-checkpoint-sqlite>=1.0.0
 openai>=1.35.7
 pypdf>=3.17.0
 python-dotenv>=1.0.0
