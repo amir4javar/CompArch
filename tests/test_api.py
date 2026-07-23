@@ -34,7 +34,7 @@ class TestHealthEndpoint:
         mock_wv = MagicMock()
         mock_wv.is_ready.return_value = True
 
-        with patch("api.routes.weaviate.connect_to_local", return_value=mock_wv):
+        with patch("api.routes.connect_weaviate", return_value=mock_wv):
             response = client.get("/health")
 
         assert response.status_code == 200
@@ -46,7 +46,7 @@ class TestHealthEndpoint:
         mock_wv = MagicMock()
         mock_wv.is_ready.return_value = False
 
-        with patch("api.routes.weaviate.connect_to_local", return_value=mock_wv):
+        with patch("api.routes.connect_weaviate", return_value=mock_wv):
             response = client.get("/health")
 
         assert response.status_code == 200
@@ -55,7 +55,7 @@ class TestHealthEndpoint:
         assert body["weaviate"] == "disconnected"
 
     def test_degraded_when_weaviate_connection_fails(self, client):
-        with patch("api.routes.weaviate.connect_to_local", side_effect=Exception("refused")):
+        with patch("api.routes.connect_weaviate", side_effect=Exception("refused")):
             response = client.get("/health")
 
         assert response.status_code == 200

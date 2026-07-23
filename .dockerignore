@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.claude/
+graphify-out/
+conversations.db
+conversations.db-shm
+conversations.db-wal
+.env

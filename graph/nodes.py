@@ -7,6 +7,7 @@ import weaviate.classes.query as wq
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 
+from api.lifespan import connect_weaviate
 from config import LLM_MODEL, LLM_API_BASE, LLM_API_KEY, WEAVIATE_COLLECTION
 from embeddings import openai_client, embeddings
 from graph.state import GraphState
@@ -33,7 +34,7 @@ def _get_weaviate_client() -> weaviate.WeaviateClient:
     global _weaviate_client
     with _weaviate_lock:
         if _weaviate_client is None or not _weaviate_client.is_connected():
-            _weaviate_client = weaviate.connect_to_local()
+            _weaviate_client = connect_weaviate()
     return _weaviate_client
 
 

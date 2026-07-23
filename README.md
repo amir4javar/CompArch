@@ -1,3 +1,13 @@
+---
+title: RAG Chat Assistant
+emoji: 🤖
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # RAG Chat Assistant
 
 A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents. It combines hybrid vector + keyword search via Weaviate, a structured 4-node LangGraph reasoning pipeline, and a real-time streaming interface over WebSockets.
