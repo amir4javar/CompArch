@@ -1,4 +1,7 @@
 streamlit>=1.33.0
+fastapi>=0.115
+uvicorn[standard]>=0.34.0
+websockets>=13,<15
 weaviate-client>=3.26.0
 langchain-weaviate>=0.0.8
 langchain-community>=0.0.29
