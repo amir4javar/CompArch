@@ -19,6 +19,7 @@ __pycache__/
 # Editor
 .vscode/
 
-.graphify-out/
+graphify-out/
+.claude/
 CLAUDE.md
 computer_architecture.pdf
