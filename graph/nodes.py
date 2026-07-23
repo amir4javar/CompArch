@@ -233,7 +233,13 @@ def retrieve_node(state: GraphState):
 
     logger.info("Searching with queries: %s", search_queries)
 
-    collection = _get_weaviate_client().collections.get(WEAVIATE_COLLECTION)
+    client = _get_weaviate_client()
+    if not client.collections.exists(WEAVIATE_COLLECTION):
+        raise RuntimeError(
+            f"Weaviate collection '{WEAVIATE_COLLECTION}' does not exist — "
+            "check that the PDF was indexed successfully at startup"
+        )
+    collection = client.collections.get(WEAVIATE_COLLECTION)
 
     # Collect all results with deduplication by chunk_id
     seen_chunk_ids: set = set()
