@@ -1,8 +1,19 @@
+---
+title: RAG Chat Assistant
+emoji: 📚
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+sdk_version: "1.37.1"
+python_version: "3.10"
+app_file: streamlit_app.py
+pinned: false
+---
+
+
 # RAG Chat Assistant
 
 A multi-turn conversational RAG (Retrieval-Augmented Generation) application for querying PDF documents. It combines hybrid vector + keyword search via Weaviate, a structured 4-node LangGraph reasoning pipeline, and a real-time streaming interface over WebSockets.
-
-[![Live Demo](https://img.shields.io/badge/🤗%20Live%20Demo-Hugging%20Face%20Spaces-blue)](https://huggingface.co/spaces/amir4javar/comp_arch)
 
 ---
 
