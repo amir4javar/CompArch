@@ -1,0 +1,25 @@
+# Secrets
+.env
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Large binary / data files
+*.pdf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Editor
+.vscode/
+
+# Dev/tooling (not tracked, local-only)
+graphify-out/
+.claude/
+CLAUDE.md

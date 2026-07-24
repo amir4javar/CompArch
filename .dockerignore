@@ -1,6 +1,8 @@
 .git
 .env
 .vscode
+.claude
+graphify-out
 
 # Python cache
 __pycache__
@@ -24,3 +26,6 @@ logic_design.pdf
 
 # Weaviate data directory (runtime-generated)
 weaviate_data/
+
+# Local venv (not used in Docker build)
+.venv/
